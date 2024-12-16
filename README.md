@@ -1,3 +1,2 @@
 # MotionControl
-___
 An input device that interprets your hand movement using IMU. MPU6050 with HMC5883L will be used for taking the input from hand movement as they are widely accessible and affordable. The aim of this project is to be able to implement all the important features and gestures from mouse and trackpads. If possible, we will also try to implement a touch screen like interaction.

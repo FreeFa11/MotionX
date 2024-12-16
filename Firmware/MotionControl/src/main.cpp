@@ -1,18 +1,33 @@
-#include <Arduino.h>
-
-// put function declarations here:
-int myFunction(int, int);
+#include <Includes.h>
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  // Temp Setup for IMU Power
+  pinMode(42, OUTPUT);
+  pinMode(41, OUTPUT);
+  digitalWrite(42, HIGH);
+  digitalWrite(41, LOW);
+  Serial.begin(115200);
+
+  SetupIMU();
+  ReadBias(30);
+  SetupHaptic();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  static float Roll, Pitch, Yaw;
+  EstimateEulerAngles(&Pitch, &Roll, &Yaw);
+
+  Serial.print(">Pitch:");
+  Serial.println(Pitch);
+  Serial.print(">Roll:");
+  Serial.println(Roll);
+
+  // static uint8_t count = 0;
+  // WriteHaptic(count, 500);
+  // vTaskDelay(1000 / portTICK_RATE_MS);
+  // count +=50;
+  // count %= 250;
+
+  vTaskDelay(50 / portTICK_RATE_MS);
 }

@@ -1,6 +1,6 @@
 # VSCode
-.code-workspace
-.vscode/
+*.code-workspace
+.vscode
 
 
 # Application
@@ -8,6 +8,7 @@
 
 # Firmware
 .pio
+Firmware/MotionControl/.gitignore
 
 
 # Schematics

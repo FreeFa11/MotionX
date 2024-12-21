@@ -2,22 +2,51 @@
 #include <freertos/FreeRTOS.h>
 
 #include <math.h>
+#include <esp_dsp.h>
+
 #include <Wire.h>
+#include <Preferences.h>
 #include <MPU6050.h>
 #include <HMC5883L.h>
 
 
 // Definitions
-#define SDAWire             39
-#define SCLWire             40
+#define SDADefault              39
+#define SCLDefault              40
 
-#define AlphaLPF            0.3
-#define AlphaCF             0.2
-#define IMUPeriod           100
-#define IMUFrequency        (1000.0 / 100)     
+#define AlphaLowPass            0.3
+#define AlphaComplementary      0.2
+#define IMUPeriod               100
+#define IMUFrequency            (1000.0 / IMUPeriod) 
 
-// Functions
-void SetupIMU();
-void SetupCompass();
-void ReadBias(int Iteration);
-void EstimateEulerAngles(float *Pitch, float *Roll, float *Yaw);
+// CxyG represents Compass gain of x.y Gauss
+enum COMPASS_GAIN {C09G, C13G, C19G, C25G, C40G, C47G, C56G, C81G};
+
+
+// Class
+class Sensor
+{
+    private:
+        // IMU
+        MPU6050 IMU;
+        ACCEL_FS AccelerationRange;
+        GYRO_FS GyroscopeRange;
+
+        // Compass
+        HMC5883L Compass;
+        COMPASS_GAIN CompassGain;
+        int CompassOffsetX, CompassOffsetY, CompassOffsetZ;
+
+        // Persistent Data
+        Preferences PersistentData;
+
+    public:
+        Sensor(int SDA = SDADefault, int SCL = SCLDefault);
+        ~Sensor();
+
+        void InitializeIMU(ACCEL_FS AccRange = ACCEL_FS::A2G, GYRO_FS GyroRange = GYRO_FS::G250DPS);
+        void InitializeCompass(COMPASS_GAIN CompassGain = COMPASS_GAIN::C09G);
+        void CalibrateIMU();
+        void CalibrateCompass(int Samples = 1500);
+        void EstimateEuler(float *Pitch, float *Roll, float *Yaw);
+};

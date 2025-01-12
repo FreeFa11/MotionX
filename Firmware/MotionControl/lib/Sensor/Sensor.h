@@ -27,17 +27,20 @@ enum COMPASS_GAIN {C09G, C13G, C19G, C25G, C40G, C47G, C56G, C81G};
 class Sensor
 {
     private:
-        // IMU
+    // IMU
+        float AX, AY, AZ, GX, GY, GZ;       // Filtered IMU Data
+        uint32_t TicksSoFar, Ticks;         // Time for Calculus
         MPU6050 IMU;
         ACCEL_FS AccelerationRange;
         GYRO_FS GyroscopeRange;
 
-        // Compass
-        HMC5883L Compass;
-        COMPASS_GAIN CompassGain;
-        int CompassOffsetX, CompassOffsetY, CompassOffsetZ;
+    // Compass
+        // float CX, CY, CZ;                   // Filterered Compass Data
+        // HMC5883L Compass;
+        // COMPASS_GAIN CompassGain;
+        // int CompassOffsetX, CompassOffsetY, CompassOffsetZ;
 
-        // Persistent Data
+    // Flash
         Preferences PersistentData;
 
     public:
@@ -45,8 +48,10 @@ class Sensor
         ~Sensor();
 
         void InitializeIMU(ACCEL_FS AccRange = ACCEL_FS::A2G, GYRO_FS GyroRange = GYRO_FS::G250DPS);
-        void InitializeCompass(COMPASS_GAIN CompassGain = COMPASS_GAIN::C09G);
         void CalibrateIMU();
-        void CalibrateCompass(int Samples = 1500);
-        void EstimateEuler(float *Pitch, float *Roll, float *Yaw);
+        void UpdateData();
+        void CalculateOrientation(float *Pitch, float *Roll, float *Yaw);
+        void CalculateVelocity(float *X, float *Y, float *Z);
+        // void InitializeCompass(COMPASS_GAIN CompassGain = COMPASS_GAIN::C09G);
+        // void CalibrateCompass(int Samples = 1500);
 };

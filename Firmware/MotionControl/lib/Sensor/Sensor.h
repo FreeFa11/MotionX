@@ -11,11 +11,12 @@
 
 
 // Definitions
-#define SDADefault              39
-#define SCLDefault              40
+#define SDADefault              15
+#define SCLDefault              18
 
-#define AlphaLowPass            0.3
-#define AlphaComplementary      0.2
+#define AlphaLowPassAcc         0.3
+#define AlphaLowPassGyro        0.2
+#define AlphaComplementary      0.02
 #define IMUPeriod               100
 #define IMUFrequency            (1000.0 / IMUPeriod) 
 
@@ -29,19 +30,25 @@ class Sensor
     private:
     // IMU
         float AX, AY, AZ, GX, GY, GZ;       // Filtered IMU Data
+        float Roll, Pitch, Yaw;             // Orientation 
         uint32_t TicksSoFar, Ticks;         // Time for Calculus
+
         MPU6050 IMU;
         ACCEL_FS AccelerationRange;
         GYRO_FS GyroscopeRange;
 
+
     // Compass
         // float CX, CY, CZ;                   // Filterered Compass Data
+
         // HMC5883L Compass;
         // COMPASS_GAIN CompassGain;
         // int CompassOffsetX, CompassOffsetY, CompassOffsetZ;
 
+
     // Flash
         Preferences PersistentData;
+
 
     public:
         Sensor(int SDA = SDADefault, int SCL = SCLDefault);
@@ -50,6 +57,9 @@ class Sensor
         void InitializeIMU(ACCEL_FS AccRange = ACCEL_FS::A2G, GYRO_FS GyroRange = GYRO_FS::G250DPS);
         void CalibrateIMU();
         void UpdateData();
+        void GetRawData(float *GX, float *GY, float *GZ);
+        void GetRawData(float *AX, float *AY, float *AZ, float *GX, float *GY, float *GZ);
+        void CalculateOrientation();
         void CalculateOrientation(float *Pitch, float *Roll, float *Yaw);
         void CalculateVelocity(float *X, float *Y, float *Z);
         // void InitializeCompass(COMPASS_GAIN CompassGain = COMPASS_GAIN::C09G);

@@ -6,6 +6,7 @@ void BLEHID::InitHID()
 {
     // Server
     BLEDevice::init("MotionX");
+    BLEDevice::setPower(ESP_PWR_LVL_N24);
 
     // Server
     pServer = BLEDevice::createServer();

@@ -3,7 +3,7 @@
 
 
 // Definitions
-#define HapticOutputPinDefault    4
+#define HapticOutputPinDefault    47
 #define HapticChannelDefault      0
 #define HapticResolutionDefault   8
 #define HapticFrequencyDefault    30000

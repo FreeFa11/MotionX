@@ -4,19 +4,21 @@ import hmac, hashlib
 import requests
 import time
 
-
-LABEL = "RightClick"
+ 
+# LABEL = "Idle"
 # LABEL = "LeftClick"
-# LABEL = "RingClick"
+# LABEL = "MiddleClick" 
+# LABEL = "RightClick"
+LABEL = "NEW DATA" 
 
 
 
 # **********************************************Collection************************************************#
 # Serial Initialization
-SerialOBJ = serial.Serial(port='COM12', baudrate=115200, timeout=1)
+SerialOBJ = serial.Serial(port='/dev/ttyACM0', baudrate=115200, timeout=1)
 
 DataFull = []
-for i in range(1, 1500):
+for i in range(0, 1500):
     DataString = SerialOBJ.readline().decode("utf-8")
 
     if DataString.startswith("{"):
@@ -38,8 +40,8 @@ for i in range(1, 1500):
 # ***********************************************Uploading************************************************#
 
 # Keys for digital Signature
-API_KEY = "Key"
-HMAC_KEY = "Key"
+API_KEY = "ei_06640f19cf9ff4a2dd4af3d2059de9800db3a7601fcaef0a"
+HMAC_KEY = "a21230b301b87cead81ed89c3a4948c7"
 
 
 DataOBJ = {
@@ -92,4 +94,3 @@ if (res.status_code == 200):
     print('Uploaded file to Edge Impulse', res.status_code, res.content)
 else:
     print('Failed to upload file to Edge Impulse', res.status_code, res.content)
-

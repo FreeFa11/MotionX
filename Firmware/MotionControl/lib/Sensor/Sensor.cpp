@@ -13,9 +13,8 @@ void Sensor::InitializeIMU(ACCEL_FS AccRange, GYRO_FS GyroRange)
 {
   IMU.initialize(ACCEL_FS::A2G, GYRO_FS::G250DPS);
 
-  AccelerationRange = AccRange;
-  GyroscopeRange = GyroRange;
-
+  // Filter of Cutoff 98Hz
+  IMU.setDLPFMode(MPU6050_DLPF_BW_98);
 
 // Check for Persistent Data of Calibration
   PersistentData.begin("Calibration", true);
@@ -25,13 +24,17 @@ void Sensor::InitializeIMU(ACCEL_FS AccRange, GYRO_FS GyroRange)
     IMU.setYGyroOffset(PersistentData.getShort("GyroOffsetY"));
     IMU.setZGyroOffset(PersistentData.getShort("GyroOffsetZ"));
   }
-  if (PersistentData.isKey("AccelOffsetX"))
-  {
-    IMU.setXAccelOffset(PersistentData.getShort("AccelOffsetX"));
-    IMU.setYAccelOffset(PersistentData.getShort("AccelOffsetY"));
-    IMU.setZAccelOffset(PersistentData.getShort("AccelOffsetZ"));
-  }
+
   PersistentData.end();
+}
+
+void Sensor::InitializeHall(adc_attenuation_t Attenuation)
+{
+  analogSetAttenuation(Attenuation);
+  
+  pinMode(RingFingerPin, INPUT);
+  pinMode(IndexFingerPin, INPUT);
+  pinMode(MiddleFingerPin, INPUT);
 }
 
 void Sensor::CalibrateIMU()
@@ -41,7 +44,7 @@ void Sensor::CalibrateIMU()
   // IMU.setFullScaleGyroRange(uint8_t(GYRO_FS::G2000DPS));
 
   // float GXB=0, GYB=0, GZB=0;
-  // for (int i = 0; i < 700; i++)
+  // for (int i = 0; i < 1500; i++)
   //   {
   //     GXB += IMU.getRotationX();
   //     GYB += IMU.getRotationY();
@@ -57,11 +60,7 @@ void Sensor::CalibrateIMU()
   // IMU.setYGyroOffset(int16_t(GYB) / 4.0);
   // IMU.setZGyroOffset(int16_t(GZB) / 4.0);
 
-  // IMU.setFullScaleAccelRange(uint8_t(this->AccelerationRange));
-  // IMU.setFullScaleGyroRange(uint8_t(this->GyroscopeRange));
-
-// Using the Calibration from JrowBergs' Library
-  IMU.CalibrateAccel();
+// Using the Calibration from Library
   IMU.CalibrateGyro();
 
 // Saving the Data in Flash
@@ -70,22 +69,26 @@ void Sensor::CalibrateIMU()
   PersistentData.putShort("GyroOffsetX", IMU.getXGyroOffset());
   PersistentData.putShort("GyroOffsetY", IMU.getYGyroOffset());
   PersistentData.putShort("GyroOffsetZ", IMU.getZGyroOffset());
-  PersistentData.putShort("AccelOffsetX", IMU.getXAccelOffset());
-  PersistentData.putShort("AccelOffsetY", IMU.getYAccelOffset());
-  PersistentData.putShort("AccelOffsetZ", IMU.getZAccelOffset());
   
   PersistentData.end();
 }
 
 void Sensor::UpdateData()
 {
-// IMU Data
-  AX = AlphaLowPassAcc * IMU.getAccelerationX()     +   (1 - AlphaLowPassAcc) * AX;
-  AY = AlphaLowPassAcc * IMU.getAccelerationY()     +   (1 - AlphaLowPassAcc) * AY;
-  AZ = AlphaLowPassAcc * IMU.getAccelerationZ()     +   (1 - AlphaLowPassAcc) * AZ;
-  GX = AlphaLowPassGyro * IMU.getRotationX()        +   (1 - AlphaLowPassGyro) * GX;
-  GY = AlphaLowPassGyro * IMU.getRotationY()        +   (1 - AlphaLowPassGyro) * GY;
-  GZ = AlphaLowPassGyro * IMU.getRotationZ()        +   (1 - AlphaLowPassGyro) * GZ;
+// Accelero
+  // Bias
+  float TX, TY, TZ;
+  TX = IMU.getAccelerationX() - 186;
+  TY = IMU.getAccelerationY() - 22;
+  TZ = IMU.getAccelerationZ() + 260;
+  // Scaling & Cross-Axis
+  AX = TX * 0.609860911       + TY * 0.000203560209     - TZ * 0.000691596337;
+  AY = TX * 0.0000905356887   + TY * 0.611274234        + TZ * 0.000183010164;
+  AZ = TX * -0.00448895538    + TY * 0.00352896401      + TZ * 0.611871348;
+// Gyro
+  GX = IMU.getRotationX();
+  GY = IMU.getRotationY();
+  GZ = IMU.getRotationZ();
 
 // Compass Data
   // CX = AlphaLowPass * (Compass.getHeadingX()-CompassOffsetX)   +   (1 - AlphaLowPass) * CX;
@@ -118,41 +121,41 @@ void Sensor::GetRawData(float *GX, float *GY, float *GZ)
 void Sensor::CalculateOrientation()
 {
   // Objects
-  static float RollGyro, PitchGyro, YawGyro, RollAcc, PitchAcc;                            // Static for consistent and fast data
+  static float RollGyro, PitchGyro, YawGyro, RollAcc, PitchAcc;                           // Static for consistent and fast data
   static float RollRateGyro, PitchRateGyro, YawRateGyro;
   static float RollRad, PitchRad, YawRad;
-  static float sinRoll, cosRoll, cosPitch, tanPitch;
-
-// Precalculation
+  // Updates
   RollRad = this->Roll * PI / 180;
   PitchRad = this->Pitch * PI / 180;
   YawRad = this->Yaw * PI / 180;
-  sinRoll = sinf(RollRad);
-  cosRoll = cosf(RollRad);
   cosPitch = cosf(PitchRad);
+  sinPitch = sinf(PitchRad);
+  cosRoll = cosf(RollRad);
+  sinRoll = sinf(RollRad);
+  cosYaw = cosf(YawRad);
+  sinYaw = sinf(YawRad);
   tanPitch = tanf(PitchRad);
 
-
 // Pitch | Roll | Yaw
-
   // Acc Attitude
   PitchAcc =  atanf(-AX/AZ) * 180 / PI;                                                   // Converting Angles from Acc to Degree
   RollAcc =   atanf(AY/AZ)  * 180 / PI;
 
   // Gyro Rates
-  RollRateGyro  =   GX  +   GY * sinRoll * tanPitch     +     GZ * cosRoll * tanPitch;    // Careful about the Angle Units
+  RollRateGyro  =   GX  +   GY * sinRoll * tanPitch     +     GZ * cosRoll * tanPitch;
   PitchRateGyro =           GY * cosRoll                -     GZ * sinRoll;
   YawRateGyro   =           GY * sinRoll / cosPitch     +     GZ * cosRoll / cosPitch; 
 
   // Gyro Attitude by Feedback
-  RollGyro  =   this->Roll     +   0.00001f * RollRateGyro   *   Ticks;                                              // 0.00001f is Integration Scaling Costant
-  PitchGyro =   this->Pitch    +   0.00001f * PitchRateGyro  *   Ticks;
-  YawGyro   =   this->Yaw       +   0.00001f * YawRateGyro    *   Ticks;
+  RollGyro  =   this->Roll     +   0.000007f * RollRateGyro   *   Ticks;                  // Integration Scaling Costant
+  PitchGyro =   this->Pitch    +   0.000007f * PitchRateGyro  *   Ticks;
+  YawGyro   =   this->Yaw       +   0.000007f * YawRateGyro    *   Ticks;
 
   // Complementary Filter
   this->Roll   =  AlphaComplementary * RollAcc    +   (1 - AlphaComplementary) * RollGyro;
   this->Pitch  =  AlphaComplementary * PitchAcc   +   (1 - AlphaComplementary) * PitchGyro;
   this->Yaw    =  YawGyro;
+
 }
 
 
@@ -168,41 +171,33 @@ void Sensor::CalculateOrientation(float *Pitch, float *Roll, float *Yaw)
 void Sensor::CalculateVelocity(float *X, float *Y, float *Z)
 {
   static float VelocityX, VelocityY, VelocityZ;
-  static float Roll, Pitch, Yaw;
 
-  CalculateOrientation(&Pitch, &Roll, &Yaw);
-
-  float cosPitch = cosf(this->Pitch * PI / 180.);
-  float sinPitch = sinf(this->Pitch * PI / 180.);
-  float cosRoll = cosf(this->Roll * PI / 180.);
-  float sinRoll = sinf(this->Roll * PI / 180.);
-  float cosYaw = cosf(this->Yaw * PI / 180.);
-  float sinYaw = sinf(this->Yaw * PI / 180.);
-
-
-// Rotation matrix components
+// // Rotation matrix components
 //     float R11 = cosYaw * cosPitch;
 //     float R12 = cosYaw * sinPitch * sinRoll - sinYaw * cosRoll;
 //     float R13 = cosYaw * sinPitch * cosRoll + sinYaw * sinRoll;
-
 //     float R21 = sinYaw * cosPitch;
 //     float R22 = sinYaw * sinPitch * sinRoll + cosYaw * cosRoll;
 //     float R23 = sinYaw * sinPitch * cosRoll - cosYaw * sinRoll;
-
 //     float R31 = -sinPitch;
 //     float R32 = cosPitch * sinRoll;
 //     float R33 = cosPitch * cosRoll;
-
 // // Transform to world frame
 //     VelocityX = R11 * AX + R12 * AY + R13 * AZ;
 //     VelocityY = R21 * AX + R22 * AY + R23 * AZ;
 //     VelocityZ = R31 * AX + R32 * AY + R33 * AZ;
-
 // Same Thing
-  VelocityX += 0.0005f * Ticks  * (cosYaw * cosPitch * AX    +    (cosYaw * sinPitch * sinRoll - sinYaw * cosRoll) * AY    +   (cosYaw * sinPitch * cosRoll + sinYaw * sinRoll) * AZ);
-  VelocityY += 0.0005f * Ticks  * (sinYaw * cosPitch * AX    +    (sinYaw * sinPitch * sinRoll + cosYaw * cosRoll) * AY    +   (sinYaw * sinPitch * cosRoll - cosYaw * sinRoll) * AZ);
-  VelocityZ += 0.0005f * Ticks  * (-sinPitch * AX            +     cosPitch * sinRoll * AY                                 +   cosPitch * cosRoll * AZ)       -     0.0005f * 16540.0f;
+  VelocityX += 0.0005f * Ticks * (cosYaw * cosPitch * AX    +    (cosYaw * sinPitch * sinRoll - sinYaw * cosRoll) * AY    +   (cosYaw * sinPitch * cosRoll + sinYaw * sinRoll) * AZ);
+  VelocityY += 0.0005f * Ticks * (sinYaw * cosPitch * AX    +    (sinYaw * sinPitch * sinRoll + cosYaw * cosRoll) * AY    +   (sinYaw * sinPitch * cosRoll - cosYaw * sinRoll) * AZ);
+  VelocityZ += 0.0005f * Ticks * (-sinPitch * AX            +     cosPitch * sinRoll * AY                                 +   cosPitch * cosRoll * AZ)       -     0.0005f * 16540.0f;
 
+  // int Magnitude = sqrt(pow(AX, 2) + pow(AY, 2) + pow(AZ, 2));
+  // USBSerial.print(">AX:");
+  // USBSerial.println(AX + Magnitude * sinPitch * cosRoll);
+  // USBSerial.print(">AY:");
+  // USBSerial.println(AY - Magnitude * cosPitch * sinRoll);
+  // USBSerial.print(">AZ:");
+  // USBSerial.println(AZ - Magnitude * cosPitch * cosRoll);
 
   *X = VelocityX;
   *Y = VelocityY;

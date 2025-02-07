@@ -155,7 +155,9 @@ void Sensor::CalculateOrientation()
   this->Roll   =  AlphaComplementary * RollAcc    +   (1 - AlphaComplementary) * RollGyro;
   this->Pitch  =  AlphaComplementary * PitchAcc   +   (1 - AlphaComplementary) * PitchGyro;
   this->Yaw    =  YawGyro;
-
+  
+  this->GY = PitchRateGyro;
+  this->GZ = YawRateGyro;
 }
 
 

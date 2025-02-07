@@ -1,3 +1,6 @@
+#ifndef _Haptic
+#define _Haptic
+
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 
@@ -32,3 +35,5 @@ public:
     // Haptic class supports vibrations corresponding to values of "Pattern" enum
     void Vibrate(Pattern VibrationPattern);
 };
+
+#endif

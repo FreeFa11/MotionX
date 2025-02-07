@@ -13,63 +13,27 @@ Sensor mySensor;
 Haptic myHaptic;
 StateMachine myState;
 
+
+
 void setup()
 {
   USBSerial.begin(115200);
  
   myHID.Initialize();
+  myHaptic.Initialize();
   mySensor.InitializeIMU();
   mySensor.InitializeHall();
   myState.state = STATE::Default;
 
-  pinMode(2, INPUT);
-  gpio_pulldown_en(GPIO_NUM_2);
+  // pinMode(2, INPUT);
+  // gpio_pulldown_en(GPIO_NUM_2);
 }
 
 void loop()
 {
-  static float VA, VB, VC;
-  static float DA, DB, DC;
-  static int8_t XX,YY;
-
-  mySensor.UpdateData();
-  mySensor.CalculateOrientation(&VA, &VB, &VC);
-  mySensor.GetRawData(&DC, &DA, &DB);
-  // mySensor.CalculateVelocity(&DA, &DB, &DC);
-  
-  DA /= 600;
-  DB /= 600;
-  if ((DA < 127.) && (DA > -127.))
-  {
-    YY = int8_t(-DA);
-  }
-  else if (DA)
-  {
-    YY = -127;
-  }
-  else
-  {
-    YY = 127;
-  }
-  if ((DB < 127.) && (DB > -127.))
-  {
-    XX = int8_t(-DB);
-  }
-  else if (DB)
-  {
-    XX = -127;
-  }
-  else
-  {
-    XX = 127;
-  }
-
-
-  RunStateMachine(myState, myHID);
-  myHID.Move(XX, YY, 0);
-
-
-
+  // State based on fingers data
+  RunStateMachine(myState, mySensor, myHID, myHaptic);
+  Map2D(mySensor, myHID);
 
 // ***************************************************Testing****************************************//
   // USBSerial.print(">P:");
@@ -96,6 +60,7 @@ void loop()
 
   vTaskDelay(10 / portTICK_RATE_MS);
 }
+
 
 
 // ****************************************************Collection***************************************************************//
@@ -125,9 +90,7 @@ void loop()
 //   static float DA, DB, DC;
 
 //   mySensor.UpdateData();
-//   mySensor.GetRawData(&GX, &GY, &GZ);
-//   mySensor.CalculateOrientation(&DA, &DB, &DC);
-//   // mySensor.CalculateVelocity(&DA, &DB, &DC);
+//   mySensor.GetRawData(&DA, &DB, &DC, &GX, &GY, &GZ);
 
 //   myData["IF"] = analogRead(IndexFingerPin);
 //   myData["MF"] = analogRead(MiddleFingerPin);
@@ -135,9 +98,9 @@ void loop()
 //   myData["GX"] = GX;
 //   myData["GY"] = GY;
 //   myData["GZ"] = GZ;
-//   myData["PI"] = DA;
-//   myData["RO"] = DB;
-//   myData["YA"] = DC;
+//   myData["AX"] = DA;
+//   myData["AY"] = DB;
+//   myData["AZ"] = DC;
 
 
 //   serializeJson(myData, USBSerial);

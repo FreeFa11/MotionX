@@ -2,42 +2,45 @@
 
 BLEHID::BLEHID(){}
 
-void BLEHID::InitHID()
+void BLEHID::Initialize()
 {
     // Server
     BLEDevice::init("MotionX");
-    BLEDevice::setPower(ESP_PWR_LVL_N24);
+    BLEDevice::setPower(ESP_PWR_LVL_P3);
+    BLEDevice::setMTU(185);
 
     // Server
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(this);
 
-    // Device
-    pHID = new BLEHIDDevice(pServer);
-    pMouse = pHID->inputReport(0);
-    pHID->manufacturer()->setValue("KTAHaru");
-    pHID->pnp(0x02, 0xE502, 0xA111, 0x0210);      // Vendor ID, Product ID, Version
-    pHID->hidInfo(0x00, 0x02);  
-
     // Security
     pSecurity = new BLESecurity();
     pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
 
-    // ReportMap
+    // HID Device
+    pHID = new BLEHIDDevice(pServer);
+    pMouse = pHID->inputReport(0x01);
+    pKeyboard = pHID->inputReport(0x02);
     pHID->reportMap((uint8_t*)HIDReportMap, sizeof(HIDReportMap));
-
-    // Service
     pHID->startServices();
-    this->onStarted(pServer);
+
+    // App Service
+    this->pAppService = pServer->createService(APPLICATION_SERVICE_UUID);
+    this->pAppChar = pAppService->createCharacteristic(APPLICATION_CHAR_UUID, BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+    pAppChar->addDescriptor(new BLE2902);
+    pAppChar->setCallbacks(this);
+    pAppService->start();
 
     // Advertising
     pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->setAppearance(GENERIC_HID);
     pAdvertising->addServiceUUID(pHID->hidService()->getUUID());
+    pAdvertising->addServiceUUID(APPLICATION_SERVICE_UUID);
     pAdvertising->start();
 
-    vTaskDelay(3000 / portTICK_RATE_MS);
-    Serial.println("BLE Service Started!!!!");
+    vTaskDelay(1000 / portTICK_RATE_MS);
+    Serial.println("Service Started!!!!");
+    USBSerial.println("Service Started!!!!");
 }
 
 void BLEHID::Move(int8_t Xaxis, int8_t Yaxis, int8_t Wheel)
@@ -50,7 +53,7 @@ void BLEHID::Move(int8_t Xaxis, int8_t Yaxis, int8_t Wheel)
         mouseData[2] = uint8_t(Yaxis);
         mouseData[3] = uint8_t(Wheel);
 
-        this->pMouse->setValue(mouseData, 5);
+        this->pMouse->setValue(mouseData, 4);
         this->pMouse->notify();
 
         if (Buttons) {Buttons = 0x00;}
@@ -63,12 +66,12 @@ void BLEHID::Point(uint16_t Xaxis, uint16_t Yaxis, uint16_t Wheel)
   
 }
 
-void BLEHID::ClickRight()
+void BLEHID::ClickLeft()
 {
     Buttons = B00000001; 
 }
 
-void BLEHID::ClickLeft()
+void BLEHID::ClickRight()
 {
     Buttons = B00000010; 
 }
@@ -78,20 +81,93 @@ void BLEHID::ClickMiddle()
     Buttons = B00000100; 
 }
 
+void BLEHID::Press(std::string Key)
+{
+    if (DeviceConnected)
+    {
+        Keys[2] = asciihid[uint8_t(Key.c_str()[0]) - ASCII_HID_MAP_KEY_OFFSET];
+    }
+}
+
+void BLEHID::Press(CONTROLKEY Key)
+{
+    if (DeviceConnected)
+    {
+        Keys[7] = Key;
+    }
+}
+
+void BLEHID::Press(MODIFIERKEY Key)
+{
+    if (DeviceConnected)
+    {
+        Keys[0] = Keys[0] | Key;
+    }
+}
+
+void BLEHID::SendKeys()
+{
+    this->pKeyboard->setValue(Keys, sizeof(Keys));
+    this->pKeyboard->notify();
+    
+    memset(Keys, 0, sizeof(Keys));
+    this->pKeyboard->setValue(Keys, sizeof(Keys));
+    this->pKeyboard->notify();
+}
+
+void BLEHID::WriteToApp(std::string Data)
+{
+    if (DeviceConnected)
+    {
+        pAppChar->setValue(Data);
+        pAppChar->notify();
+    }
+}
+
 void BLEHID::onConnect(BLEServer* pServer) {
     DeviceConnected = true;
+
     // Set notifications
-    BLE2902* desc = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-    desc->setNotifications(true);
-    Serial.println("Client connected");
+    BLE2902* descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor->setNotifications(true);
+    descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor->setNotifications(true);
+    Serial.println("Client connected!!!!");
+    USBSerial.println("Client connected!!!!");
 }
 
 void BLEHID::onDisconnect(BLEServer* pServer) {
     DeviceConnected = false;
+
     // Reset notifications
-    BLE2902* desc = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
-    desc->setNotifications(false);
-    Serial.println("Client disconnected");
+    BLE2902* descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor->setNotifications(false);
+    descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor->setNotifications(false);
+    Serial.println("Client disconnected!!!!");
+    USBSerial.println("Client disconnected!!!!");
 
     pAdvertising->start();
+}
+
+
+void BLEHID::onWrite(BLECharacteristic *pCharacteristic) {
+
+    std::string DataString = pCharacteristic->getValue();
+    JsonDocument DataJSON;
+
+    if (pCharacteristic->getLength() > 0) {
+        // Error Handling in case of improper data
+        DeserializationError error = deserializeJson(DataJSON, DataString);
+
+        if (error)
+        {
+            USBSerial.println("Data not JSON:\t" + String(DataString.c_str()));
+        }
+        else
+        {
+            // Implementation of Data handling to be done here!!
+            serializeJson(DataJSON, USBSerial);
+        }
+    }
 }

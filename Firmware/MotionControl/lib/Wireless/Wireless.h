@@ -33,6 +33,7 @@ class BLEHID : public BLEServerCallbacks, public BLECharacteristicCallbacks
 
     uint8_t Buttons = 0x00;
     uint8_t Keys[8];
+    std::string AppData;
 
     bool DeviceConnected = false;
     BLEServer *pServer = nullptr;
@@ -43,6 +44,7 @@ class BLEHID : public BLEServerCallbacks, public BLECharacteristicCallbacks
     BLECharacteristic *pKeyboard = nullptr;
     BLEService *pAppService = nullptr;
     BLECharacteristic *pAppChar = nullptr;
+    Preferences Preference;
 
     public:
     BLEHID();
@@ -58,6 +60,7 @@ class BLEHID : public BLEServerCallbacks, public BLECharacteristicCallbacks
     void Press(MODIFIERKEY Key);
     void SendKeys();
     void WriteToApp(std::string Data);
+    void HandleAppData();
 
     protected:
     virtual void onConnect(BLEServer* pServer) override;

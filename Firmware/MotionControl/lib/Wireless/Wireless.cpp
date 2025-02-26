@@ -4,10 +4,11 @@ BLEHID::BLEHID(){}
 
 void BLEHID::Initialize()
 {
-    // Server
+    // Initiation
     BLEDevice::init("MotionX");
-    BLEDevice::setPower(ESP_PWR_LVL_P3);
-    BLEDevice::setMTU(185);
+    BLEDevice::setPower(ESP_PWR_LVL_N0);
+    BLEDevice::setMTU(247);
+    BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT);
 
     // Server
     pServer = BLEDevice::createServer();
@@ -19,9 +20,12 @@ void BLEHID::Initialize()
 
     // HID Device
     pHID = new BLEHIDDevice(pServer);
-    pMouse = pHID->inputReport(0x01);
-    pKeyboard = pHID->inputReport(0x02);
+    pHID->manufacturer()->setValue("Thapathali");                           // Manufacturer
+    pHID->pnp(0x02, 0xe502, 0xa111, 0x0210);
+    pHID->hidInfo(0x00,0x01);
     pHID->reportMap((uint8_t*)HIDReportMap, sizeof(HIDReportMap));
+    pKeyboard = pHID->inputReport(0x01);
+    pMouse = pHID->inputReport(0x02);
     pHID->startServices();
 
     // App Service
@@ -30,10 +34,11 @@ void BLEHID::Initialize()
     pAppChar->addDescriptor(new BLE2902);
     pAppChar->setCallbacks(this);
     pAppService->start();
+    pHID->setBatteryLevel(100);
 
     // Advertising
     pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->setAppearance(GENERIC_HID);
+    pAdvertising->setAppearance(HID_KEYBOARD);
     pAdvertising->addServiceUUID(pHID->hidService()->getUUID());
     pAdvertising->addServiceUUID(APPLICATION_SERVICE_UUID);
     pAdvertising->start();
@@ -53,7 +58,7 @@ void BLEHID::Move(int8_t Xaxis, int8_t Yaxis, int8_t Wheel)
         mouseData[2] = uint8_t(Yaxis);
         mouseData[3] = uint8_t(Wheel);
 
-        this->pMouse->setValue(mouseData, 4);
+        this->pMouse->setValue(mouseData, sizeof(mouseData));
         this->pMouse->notify();
 
         if (Buttons) {Buttons = 0x00;}
@@ -107,12 +112,15 @@ void BLEHID::Press(MODIFIERKEY Key)
 
 void BLEHID::SendKeys()
 {
-    this->pKeyboard->setValue(Keys, sizeof(Keys));
-    this->pKeyboard->notify();
-    
-    memset(Keys, 0, sizeof(Keys));
-    this->pKeyboard->setValue(Keys, sizeof(Keys));
-    this->pKeyboard->notify();
+    if (DeviceConnected)
+    {
+        this->pKeyboard->setValue(Keys, sizeof(Keys));
+        this->pKeyboard->notify();
+        
+        memset(Keys, 0, sizeof(Keys));
+        this->pKeyboard->setValue(Keys, sizeof(Keys));
+        this->pKeyboard->notify();
+    }
 }
 
 void BLEHID::WriteToApp(std::string Data)
@@ -124,13 +132,62 @@ void BLEHID::WriteToApp(std::string Data)
     }
 }
 
+void BLEHID::HandleAppData()
+{
+    if (!AppData.empty())
+    {
+        JsonDocument DataJSON;
+        USBSerial.println(AppData.c_str());
+        
+        if (AppData.length() > 0) {
+    
+            // Error Handling in case of improper data
+            DeserializationError error = deserializeJson(DataJSON, AppData);
+            
+            if (error)
+            {
+                USBSerial.println("Data not JSON Error:\t" + String(AppData.c_str()));
+            }
+            else
+            {
+                if (DataJSON["Type"].as<String>() == "N")
+                {
+                    Preference.begin("AppData", false);
+        
+                    Preference.putUInt("Sensitivity", DataJSON["SN"].as<uint32_t>());
+                    Preference.putBool("HapticOn", DataJSON["HO"].as<bool>());
+                    Preference.putUInt("HapticMode", DataJSON["HM"].as<uint32_t>());
+    
+                    Preference.end();
+                }
+                else if(DataJSON["Type"].as<String>() == "G")
+                {
+                    Preference.begin("AppData", false);
+        
+                    Preference.putUInt("GestureOne", DataJSON["G1"].as<uint32_t>());
+                    Preference.putUInt("GestureTwo", DataJSON["G2"].as<uint32_t>());
+                    Preference.putUInt("GestureThree", DataJSON["G3"].as<uint32_t>());
+                    Preference.putUInt("GestureFour", DataJSON["G4"].as<uint32_t>());
+                    Preference.putUInt("GestureFive", DataJSON["G5"].as<uint32_t>());
+    
+                    Preference.end();
+                }
+                
+                ESP.restart();
+            }
+        }
+
+        AppData.clear();
+    }
+}
+
 void BLEHID::onConnect(BLEServer* pServer) {
     DeviceConnected = true;
 
     // Set notifications
-    BLE2902* descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    BLE2902* descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
     descriptor->setNotifications(true);
-    descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
     descriptor->setNotifications(true);
     Serial.println("Client connected!!!!");
     USBSerial.println("Client connected!!!!");
@@ -140,9 +197,9 @@ void BLEHID::onDisconnect(BLEServer* pServer) {
     DeviceConnected = false;
 
     // Reset notifications
-    BLE2902* descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    BLE2902* descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
     descriptor->setNotifications(false);
-    descriptor = (BLE2902*)this->pKeyboard->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
+    descriptor = (BLE2902*)this->pMouse->getDescriptorByUUID(BLEUUID((uint16_t)0x2902));
     descriptor->setNotifications(false);
     Serial.println("Client disconnected!!!!");
     USBSerial.println("Client disconnected!!!!");
@@ -153,21 +210,5 @@ void BLEHID::onDisconnect(BLEServer* pServer) {
 
 void BLEHID::onWrite(BLECharacteristic *pCharacteristic) {
 
-    std::string DataString = pCharacteristic->getValue();
-    JsonDocument DataJSON;
-
-    if (pCharacteristic->getLength() > 0) {
-        // Error Handling in case of improper data
-        DeserializationError error = deserializeJson(DataJSON, DataString);
-
-        if (error)
-        {
-            USBSerial.println("Data not JSON:\t" + String(DataString.c_str()));
-        }
-        else
-        {
-            // Implementation of Data handling to be done here!!
-            serializeJson(DataJSON, USBSerial);
-        }
-    }
+    AppData = pCharacteristic->getValue();
 }

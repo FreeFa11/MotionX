@@ -11,21 +11,10 @@ Sensor::~Sensor(){}
 
 void Sensor::InitializeIMU(ACCEL_FS AccRange, GYRO_FS GyroRange)
 {
-  IMU.initialize(ACCEL_FS::A2G, GYRO_FS::G250DPS);
+  IMU.initialize(AccRange, GyroRange);
 
   // Filter of Cutoff 98Hz
   IMU.setDLPFMode(MPU6050_DLPF_BW_98);
-
-// Check for Persistent Data of Calibration
-  PersistentData.begin("Calibration", true);
-  if (PersistentData.isKey("GyroOffsetX"))
-  {
-    IMU.setXGyroOffset(PersistentData.getShort("GyroOffsetX"));
-    IMU.setYGyroOffset(PersistentData.getShort("GyroOffsetY"));
-    IMU.setZGyroOffset(PersistentData.getShort("GyroOffsetZ"));
-  }
-
-  PersistentData.end();
 }
 
 void Sensor::InitializeHall(adc_attenuation_t Attenuation)
@@ -60,17 +49,14 @@ void Sensor::CalibrateIMU()
   // IMU.setYGyroOffset(int16_t(GYB) / 4.0);
   // IMU.setZGyroOffset(int16_t(GZB) / 4.0);
 
-// Using the Calibration from Library
-  IMU.CalibrateGyro();
-
 // Saving the Data in Flash
-  PersistentData.begin("Calibration", false);
+  // PersistentData.begin("Calibration", false);
 
-  PersistentData.putShort("GyroOffsetX", IMU.getXGyroOffset());
-  PersistentData.putShort("GyroOffsetY", IMU.getYGyroOffset());
-  PersistentData.putShort("GyroOffsetZ", IMU.getZGyroOffset());
+  // PersistentData.putShort("GyroOffsetX", IMU.getXGyroOffset());
+  // PersistentData.putShort("GyroOffsetY", IMU.getYGyroOffset());
+  // PersistentData.putShort("GyroOffsetZ", IMU.getZGyroOffset());
   
-  PersistentData.end();
+  // PersistentData.end();
 }
 
 void Sensor::UpdateData()
@@ -86,9 +72,9 @@ void Sensor::UpdateData()
   AY = TX * 0.0000905356887   + TY * 0.611274234        + TZ * 0.000183010164;
   AZ = TX * -0.00448895538    + TY * 0.00352896401      + TZ * 0.611871348;
 // Gyro
-  GX = IMU.getRotationX();
-  GY = IMU.getRotationY();
-  GZ = IMU.getRotationZ();
+  GX = IMU.getRotationX() - 118;
+  GY = IMU.getRotationY() + 24;
+  GZ = IMU.getRotationZ() + 25;
 
 // Compass Data
   // CX = AlphaLowPass * (Compass.getHeadingX()-CompassOffsetX)   +   (1 - AlphaLowPass) * CX;
@@ -147,9 +133,9 @@ void Sensor::CalculateOrientation()
   YawRateGyro   =           GY * sinRoll / cosPitch     +     GZ * cosRoll / cosPitch; 
 
   // Gyro Attitude by Feedback
-  RollGyro  =   this->Roll     +   0.000007f * RollRateGyro   *   Ticks;                  // Integration Scaling Costant
-  PitchGyro =   this->Pitch    +   0.000007f * PitchRateGyro  *   Ticks;
-  YawGyro   =   this->Yaw       +   0.000007f * YawRateGyro    *   Ticks;
+  RollGyro  =   this->Roll     +   0.000014f * RollRateGyro   *   Ticks;                  // Integration Scaling Costant
+  PitchGyro =   this->Pitch    +   0.000014f * PitchRateGyro  *   Ticks;
+  YawGyro   =   this->Yaw       +   0.000014f * YawRateGyro    *   Ticks;
 
   // Complementary Filter
   this->Roll   =  AlphaComplementary * RollAcc    +   (1 - AlphaComplementary) * RollGyro;

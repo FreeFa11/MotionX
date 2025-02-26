@@ -9,13 +9,14 @@ import time
 # LABEL = "LeftClick"
 # LABEL = "MiddleClick" 
 # LABEL = "RightClick"
-LABEL = "NEW DATA" 
+LABEL = "LeftSwipe"
+# LABEL = "RightSwipe" 
 
 
 
 # **********************************************Collection************************************************#
 # Serial Initialization
-SerialOBJ = serial.Serial(port='/dev/ttyACM0', baudrate=115200, timeout=1)
+SerialOBJ = serial.Serial(port='COM12', baudrate=115200, timeout=1)
 
 DataFull = []
 for i in range(0, 1500):
@@ -27,12 +28,12 @@ for i in range(0, 1500):
             [int(DataDict["IF"]),
              int(DataDict["MF"]),
              int(DataDict["RF"]),
-             float(DataDict["GX"]/65.0),
-             float(DataDict["GY"]/65.0),
-             float(DataDict["GZ"]/65.0),
-             float(DataDict["RO"]),
-             float(DataDict["PI"]),
-             float(DataDict["YA"])]
+             float(DataDict["GX"]),
+             float(DataDict["GY"]),
+             float(DataDict["GZ"]),
+             float(DataDict["AX"]),
+             float(DataDict["AY"]),
+             float(DataDict["AZ"])]
             )
     
 
@@ -62,9 +63,9 @@ DataOBJ = {
             { "name": "GyroX", "units": "°/s" },
             { "name": "GyroY", "units": "°/s" },
             { "name": "GyroZ", "units": "°/s" },
-            { "name": "Roll", "units": "°" },
-            { "name": "Pitch", "units": "°" },
-            { "name": "Yaw", "units": "°" }
+            { "name": "AccX", "units": "°" },
+            { "name": "AccY", "units": "°" },
+            { "name": "AccZ", "units": "°" }
         ],
         "values": DataFull
     }

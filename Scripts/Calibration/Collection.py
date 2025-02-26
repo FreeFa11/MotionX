@@ -35,33 +35,31 @@ def SampleDataAcc():
 
 def SampleDataGyro():
 
-    GX = 0
-    GY = 0
-    GZ = 0
+    Iteration = 300
+    print("Sampling\t", sep="")
 
-    for i in range(0, SAMPLES):
+    while (Iteration > 0):
         DataString = SerialOBJ.readline().decode("utf-8")
 
         if DataString.startswith("{"):
-            DataDict = json.loads(DataString)
+            try:
+                DataDict = json.loads(DataString)
+                with open(f"{os.path.dirname(os.path.abspath(__file__))}/DataGyro.csv", mode= 'a+', newline='') as FileCSV:
+                    CSVWriter = csv.writer(FileCSV)
+                    CSVWriter.writerow([int(DataDict["GX"]), int(DataDict["GY"]), int(DataDict["GZ"])])
+                Iteration -= 1
+            except:
+                pass
+        
+        if (Iteration % 100 == 0):
+            print(".", end="")
 
-            GX += int(DataDict["GX"])
-            GY += int(DataDict["GY"])
-            GZ += int(DataDict["GZ"])
 
-    return [GX/SAMPLES, GY/SAMPLES, GZ/SAMPLES]
+def WriteData(Row):
 
-
-def WriteData(Row, Acc):
-
-    if Acc:
-        with open(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv", mode= 'a+', newline='') as FileCSV:
-            CSVWriter = csv.writer(FileCSV)
-            CSVWriter.writerow(Row)
-    else:
-        with open(f"{os.path.dirname(os.path.abspath(__file__))}/DataGyro.csv", mode= 'a+', newline='') as FileCSV:
-            CSVWriter = csv.writer(FileCSV)
-            CSVWriter.writerow(Row)
+    with open(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv", mode= 'a+', newline='') as FileCSV:
+        CSVWriter = csv.writer(FileCSV)
+        CSVWriter.writerow(Row)
     
 
 while (True):
@@ -69,14 +67,14 @@ while (True):
     UserInput = input("""\nEnter Option:\n1) Collect\t2) Exit\n\n""")
 
     if (UserInput == "1"):
-        DataAcc = SampleDataAcc()
-        # DataGyro = SampleDataGyro()
+        # DataAcc = SampleDataAcc()
+        DataGyro = SampleDataGyro()
 
-        if (input("\nDiscard?(Y/N):\t").upper() == "Y"):
-            pass
-        else:
-            WriteData(DataAcc, True)
-            # WriteData(DataGyro, False)
+        # if (input("\nDiscard?(Y/N):\t").upper() == "Y"):
+        #     pass
+        # else:
+        #     WriteData(DataAcc)
+        #     pass
 
     elif (UserInput == "2"):
         break

@@ -5,11 +5,40 @@
 
 // HID Descriptor
 const uint8_t HIDReportMap[] = {
+//  Keyboard
+    USAGE_PAGE(1),      0x01,           //  Generic Desktop
+    USAGE(1),           0x06,           //  Keyboard
+    COLLECTION(1),      0x01,           //  Application
+    REPORT_ID(1),       0x01,           //  1
+    // Scancode (Alt, Shift, Ctrl)
+    USAGE_PAGE(1),      0x07,           //  Keyboard
+    USAGE_MINIMUM(1),   0xE0,           //  LeftControl
+    USAGE_MAXIMUM(1),   0xE7,           //  RightGUI
+    LOGICAL_MINIMUM(1), 0x00,           //  0
+    LOGICAL_MAXIMUM(1), 0x01,           //  1
+    REPORT_SIZE(1),     0x01,           //  1
+    REPORT_COUNT(1),    0x08,           //  8
+    HIDINPUT(1),        0x02,           //  INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    // Reserved
+    REPORT_SIZE(1),     0x08,
+    REPORT_COUNT(1),    0x01,
+    HIDINPUT(1),        0x01,
+    // Keys
+    REPORT_COUNT(1),    0x06,           //  6
+    REPORT_SIZE(1),     0x08,           //  Byte
+    LOGICAL_MINIMUM(1), 0x00,           //  0
+    LOGICAL_MAXIMUM(1), 0x65,           //  101
+    USAGE_PAGE(1),      0x07,           //  Keyboard
+    USAGE_MINIMUM(1),   0x00,           //  0
+    USAGE_MAXIMUM(1),   0x65,           //  101
+    HIDINPUT(1),        0x00,           //  INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    END_COLLECTION(0),
+
 //  Mouse
     USAGE_PAGE(1),      0x01,           //  Generic Desktop
     USAGE(1),           0x02,           //  Mouse
     COLLECTION(1),      0x01,           //  Application
-    REPORT_ID(1),       0x01,           //  1
+    REPORT_ID(1),       0x02,           //  2
     USAGE(1),           0x01,           //  Pointer
     COLLECTION(1),      0x00,           //  Physical
     // Buttons (Left, Right, Middle)
@@ -37,35 +66,6 @@ const uint8_t HIDReportMap[] = {
     HIDINPUT(1),        0x06,           //  INPUT (Data, Variable, Relative)
     END_COLLECTION(0),
     END_COLLECTION(0),
-
-//  Keyboard
-    USAGE_PAGE(1),      0x01,           //  Generic Desktop
-    USAGE(1),           0x06,           //  Keyboard
-    COLLECTION(1),      0x01,           //  Application
-    REPORT_ID(1),       0x02,           //  2
-    // Scancode (Alt, Shift, Ctrl)
-    USAGE_PAGE(1),      0x07,           //  Keyboard
-    USAGE_MINIMUM(1),   0xE0,           //  LeftControl
-    USAGE_MAXIMUM(1),   0xE7,           //  RightGUI
-    LOGICAL_MINIMUM(1), 0x00,           //  0
-    LOGICAL_MAXIMUM(1), 0x01,           //  1
-    REPORT_SIZE(1),     0x01,           //  1
-    REPORT_COUNT(1),    0x08,           //  8
-    HIDINPUT(1),        0x02,           //  INPUT (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    // Reserved
-    REPORT_COUNT(1),    0x01,
-    REPORT_SIZE(1),     0x08,
-    HIDINPUT(1),        0x01,
-    // Keys
-    REPORT_COUNT(1),    0x06,           //  6
-    REPORT_SIZE(1),     0x08,           //  Byte
-    LOGICAL_MINIMUM(1), 0x00,           //  0
-    LOGICAL_MAXIMUM(1), 0x65,           //  101
-    USAGE_PAGE(1),      0x07,           //  Keyboard
-    USAGE_MINIMUM(1),   0x00,           //  0
-    USAGE_MAXIMUM(1),   0x65,           //  101
-    HIDINPUT(1),        0x00,           //  INPUT (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    END_COLLECTION(0)
 };
 
 
@@ -112,7 +112,8 @@ enum CONTROLKEY {
     RightArrow  = 0x4F,
     LeftArrow   = 0x50,
     DownArrow   = 0x51,
-    UpArrow     = 0x52
+    UpArrow     = 0x52,
+    F4          = 0x3D
 };
 
 enum MODIFIERKEY {

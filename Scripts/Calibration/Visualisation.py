@@ -2,6 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.optimize import least_squares
 import numpy as np
 import os
 
@@ -9,6 +10,7 @@ import os
 
 # %%  Reading 
 myData = pd.read_csv(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv")
+# myGyroData = pd.read_csv(f"{os.path.dirname(os.path.abspath(__file__))}/DataGyro.csv")
 
 
 # *****************************************************************************************
@@ -19,7 +21,7 @@ myData = pd.read_csv(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv"
 # axes[0].hist(myData["AX"], bins=40, edgecolor='black')
 # axes[0].set_title("Accelerometer X Axis")
 
-# axes[1].hist(myData["GX"], bins=40, edgecolor='black')
+# axes[1].hist(myData["AY"], bins=40, edgecolor='black')
 # axes[1].set_title("Gyroscope X Axis")
 
 # # %%
@@ -57,7 +59,6 @@ myData = pd.read_csv(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv"
 # *****************************************************************************************
 
 
-
 # fig2d, plots = plt.subplots(1, 3)
 
 # fig3d = plt.figure()
@@ -73,18 +74,17 @@ myData = pd.read_csv(f"{os.path.dirname(os.path.abspath(__file__))}/DataAcc.csv"
 # plots[2].scatter(myData["AZ"], myData["AX"], marker="*")
 
 
-# # plt.legend()
+# plt.legend()
 # plt.tight_layout()
 # plt.show()
 
 
 # ***********************************************************************
-import numpy as np
 from scipy.optimize import least_squares
 
 # Example: Assume your IMU data is stored in a dictionary `data`
 AX, AY, AZ = myData["AX"], myData["AY"], myData["AZ"]
-g = 10000  # Gravity magnitude in m/s²
+g = 16500  # Gravity magnitude in m/s²
 
 # Stack accelerometer readings into Nx3 matrix
 A = np.column_stack((AX, AY, AZ))
@@ -125,17 +125,45 @@ A_calibrated = (A - bias_opt) @ S_opt.T
 AX_calibrated, AY_calibrated, AZ_calibrated = A_calibrated[:, 0], A_calibrated[:, 1], A_calibrated[:, 2]
 
 # Plot Pre-Calibrated vs. Calibrated AX vs AY
-plt.figure(figsize=(8, 6))
+Fig = plt.figure(figsize=(8, 6))
+
 
 # Pre-Calibrated Data
-plt.scatter(AY, AZ, color='red', alpha=0.5, label="Pre-Calibrated")
+plt.scatter(AY, AZ, color='red', alpha=0.5, label="Raw")
 
 # Calibrated Data
 plt.scatter(AY_calibrated, AZ_calibrated, color='blue', alpha=0.5, label="Calibrated")
 
-plt.xlabel("AY (m/s²)")
-plt.ylabel("AZ (m/s²)")
+plt.xlabel("AccelerometerY")
+plt.ylabel("AccelerometerZ")
 plt.legend()
-plt.title("Pre-Calibrated vs. Calibrated AY vs AZ")
+plt.title("Raw vs. Calibrated")
+for text in Fig.findobj(plt.Text):
+    text.set_fontsize(15)
+    text.set_fontfamily("Times New Roman")
 plt.grid()
 plt.show()
+
+
+# ***********************************************************************
+# GX, GY, GZ = myGyroData["GX"], myGyroData["GY"], myGyroData["GZ"]
+# GXAV = np.average(GX)*np.ones(len(GX))
+# GYAV = np.average(GY)*np.ones(len(GY))
+# GZAV = np.average(GZ)*np.ones(len(GZ))
+# timeAxis = np.linspace(0, 6, len(GX))
+
+
+# fig, ax = plt.subplots(1, 3)
+
+# ax[0].plot(timeAxis, GX)
+# ax[0].plot(timeAxis, GXAV)
+# ax[1].plot(timeAxis, GY)
+# ax[1].plot(timeAxis, GYAV)
+# ax[2].plot(timeAxis, GZ)
+# ax[2].plot(timeAxis, GZAV)
+
+# print(f"GyroX: {np.average(GX)}, GyroY: {np.average(GY)}, GyroZ: {np.average(GZ)}")
+
+# plt.tight_layout()
+# plt.grid()
+# plt.show()
